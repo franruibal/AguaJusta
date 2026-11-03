@@ -9,7 +9,7 @@ import mysql from 'mysql2/promise';
 const url = process.env.MYSQL_URL || process.env.DATABASE_URL;
 const e = process.env;
 
-export const config = url
+const base = url
   ? { uri: url }
   : {
       host: e.MYSQLHOST ?? '127.0.0.1',
@@ -18,6 +18,9 @@ export const config = url
       password: e.MYSQLPASSWORD ?? '',
       database: e.MYSQLDATABASE ?? 'aguas_justas',
     };
+
+/* Las bases MySQL en la nube (TiDB, Aiven, etc.) suelen pedir conexión cifrada: MYSQL_SSL=true. */
+export const config = e.MYSQL_SSL === 'true' ? { ...base, ssl: { minVersion: 'TLSv1.2', rejectUnauthorized: true } } : base;
 
 export const pool = mysql.createPool({
   ...config,

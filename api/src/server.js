@@ -6,8 +6,21 @@ import { pool } from './db.js';
 import * as Q from './queries.js';
 import { cargar } from './seed.js';
 
+/*
+ * API del tablero. Todas las rutas viven bajo /api: en Vercel la reescritura
+ * pública "/api/(.*)" manda la petición a este servicio con la ruta original.
+ */
 const app = express();
 app.disable('x-powered-by');
+
+/* La primera petición contra una base vacía crea las tablas y carga los datos. */
+let preparada = null;
+const prepararBase = () => {
+  preparada ??= cargar()
+    .then((hecho) => { if (hecho) console.log('Base vacía: se cargaron las tablas y los datos.'); })
+    .catch((err) => { console.error('No se pudo preparar la base:', err.message); preparada = null; });
+  return preparada;
+};
 
 /** Lee un parámetro de texto opcional de la query string (vacío = sin filtro). */
 const param = (req, name, max = 120) => {
@@ -23,6 +36,7 @@ const ruta = (fn) => async (req, res, next) => {
 };
 
 const api = express.Router();
+api.use(async (req, res, next) => { await prepararBase(); next(); });
 api.get('/salud', ruta(async () => { await pool.query('SELECT 1'); return { ok: true }; }));
 api.get('/resumen', ruta(() => Q.resumen()));
 api.get('/temas', ruta(() => Q.temas()));
@@ -43,25 +57,28 @@ api.get('/pendientes', ruta((req) => Q.pendientes({ buscar: param(req, 'buscar',
 api.use((req, res) => res.status(404).json({ error: 'No existe esa ruta de la API.' }));
 app.use('/api', api);
 
-/* En producción la misma app sirve el frontend compilado. */
-const here = path.dirname(fileURLToPath(import.meta.url));
-const staticDir = process.env.STATIC_DIR ?? path.resolve(here, '../../web/dist');
-if (existsSync(staticDir)) {
-  app.use(express.static(staticDir, { maxAge: '1h', index: false }));
-  app.get(/^(?!\/api\/).*/, (req, res) => res.sendFile(path.join(staticDir, 'index.html')));
+/*
+ * Fuera de Vercel (en tu compu o en un servidor propio) la misma app sirve el
+ * frontend compilado. En Vercel eso lo hace el servicio "web".
+ */
+if (!process.env.VERCEL) {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const staticDir = process.env.STATIC_DIR ?? path.resolve(here, '../../web/dist');
+  if (existsSync(staticDir)) {
+    app.use(express.static(staticDir, { maxAge: '1h', index: false }));
+    app.get(/^(?!\/api\/).*/, (req, res) => res.sendFile(path.join(staticDir, 'index.html')));
+  }
 }
 
 app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
   console.error(err);
-  res.status(500).json({ error: 'No se pudo leer la base de datos. Revisá que MySQL esté levantado y que la API tenga acceso.' });
+  res.status(500).json({ error: 'No se pudo leer la base de datos. Revisá que MySQL esté disponible y que MYSQL_URL sea correcta.' });
 });
 
-const port = Number(process.env.PORT ?? 3001);
-
-// La primera vez que arranca contra una base vacía, crea las tablas y carga los datos.
-try {
-  if (await cargar()) console.log('Base vacía: se cargaron las tablas y los datos.');
-} catch (err) {
-  console.error('No se pudo preparar la base:', err.message);
+/* En Vercel se usa la app exportada; en local se levanta un servidor. */
+if (!process.env.VERCEL) {
+  const port = Number(process.env.PORT ?? 3001);
+  app.listen(port, () => console.log(`Aguas Justas en http://localhost:${port}`));
 }
-app.listen(port, () => console.log(`Aguas Justas en el puerto ${port}`));
+
+export default app;

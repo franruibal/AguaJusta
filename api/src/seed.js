@@ -1,19 +1,20 @@
 /*
- * Carga la base desde db/01_aguas_justas.sql y db/02_lecturas.sql en la base
+ * Carga la base desde api/db/01_aguas_justas.sql y api/db/02_lecturas.sql en la base
  * a la que apunta la conexión (en Railway se llama "railway").
  *
  *   node src/seed.js            carga solo si las tablas no existen
  *   node src/seed.js --recargar borra las tablas del tablero y las vuelve a cargar
  */
 import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import mysql from 'mysql2/promise';
 import { config } from './db.js';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const dbDir = process.env.DB_DIR ?? path.resolve(here, '../../db');
-const ARCHIVOS = ['01_aguas_justas.sql', '02_lecturas.sql'];
+/* Rutas literales con import.meta.url para que el empaquetado de Vercel incluya los .sql. */
+const ARCHIVOS = [
+  new URL('../db/01_aguas_justas.sql', import.meta.url),
+  new URL('../db/02_lecturas.sql', import.meta.url),
+];
 const TABLAS = ['tension_hallazgo', 'tension_respuesta', 'tension', 'eje_tema', 'lugar_ubicacion', 'dato_pendiente',
   'hallazgo_tema', 'hallazgo', 'fuente', 'respuesta_lugar', 'respuesta_tema', 'lugar', 'tema', 'respuesta',
   'entrevistado', 'pregunta', 'salida_campo'];
@@ -33,7 +34,7 @@ export async function cargar({ recargar = false } = {}) {
       for (const t of TABLAS) await cn.query(`DROP TABLE IF EXISTS \`${t}\``);
       await cn.query('SET FOREIGN_KEY_CHECKS = 1');
     }
-    for (const f of ARCHIVOS) await cn.query(adaptar(await readFile(path.join(dbDir, f), 'utf8')));
+    for (const f of ARCHIVOS) await cn.query(adaptar(await readFile(f, 'utf8')));
     return true;
   } finally {
     await cn.end();

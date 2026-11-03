@@ -3,30 +3,32 @@
 Una sola app: React en el frontend, Node + Express en el backend y MySQL como base.
 
 ```
-db/    los scripts SQL (la base original + ubicaciones, cruces y tensiones)
-api/   backend en Express; también sirve el frontend compilado
+api/   backend en Express (api/db tiene los scripts SQL de la base)
 web/   frontend en React + Vite (el mapa es de OpenStreetMap)
 ```
 
-## Subirlo a Railway
+## Subirlo a Vercel
+
+El `vercel.json` define dos servicios en un mismo proyecto: `web` (React) responde en `/` y `api` (Express) en `/api`.
 
 1. Subí esta carpeta a un repositorio de GitHub.
-2. En [railway.com](https://railway.com): **New Project → Deploy from GitHub repo** y elegí el repositorio. Railway usa el `Dockerfile` solo.
-3. En el mismo proyecto: **+ Create → Database → MySQL**.
-4. En el servicio de la app, entrá a **Variables** y agregá:
+2. Conseguí una base MySQL en la nube, porque Vercel no trae MySQL propio. Sirven, por ejemplo, TiDB Cloud o Aiven, que tienen planes gratis. Copiá la cadena de conexión (`mysql://usuario:clave@host:puerto/base`).
+3. En [vercel.com](https://vercel.com): **Add New → Project** e importá el repositorio. Vercel lee el `vercel.json` y arma los dos servicios.
+4. En **Settings → Environment Variables** agregá:
    ```
-   MYSQL_URL = ${{MySQL.MYSQL_URL}}
+   MYSQL_URL = mysql://usuario:clave@host:puerto/base
+   MYSQL_SSL = true        # si el proveedor pide conexión cifrada (TiDB y Aiven la piden)
    ```
-5. En **Settings → Networking**, tocá **Generate Domain**. Esa es la dirección del tablero.
+5. Hacé el deploy. La primera vez que alguien abre el tablero, la API encuentra la base vacía, crea las tablas y carga los datos.
 
-La primera vez que arranca, la app encuentra la base vacía, crea las tablas y carga los datos. No hay que importar nada a mano.
+Para probar todo junto en tu compu, igual que en Vercel: `vercel dev` desde esta carpeta.
 
 ## Cambiar los datos
 
-Editá los archivos de `db/`, subí los cambios a GitHub y, desde la consola del servicio en Railway, recargá la base:
+Editá los archivos de `api/db/`, subí los cambios y recargá la base desde tu compu, apuntando a la base de la nube:
 
 ```bash
-npm run db:recargar
+cd api && MYSQL_URL="mysql://..." MYSQL_SSL=true npm run db:recargar
 ```
 
 ## Correrlo en tu compu

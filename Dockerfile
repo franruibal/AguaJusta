@@ -11,8 +11,8 @@ WORKDIR /app/api
 COPY api/package.json api/package-lock.json ./
 RUN npm ci --omit=dev
 COPY api/src ./src
-COPY db /app/db
+COPY api/db ./db
 COPY --from=web /web/dist /app/web/dist
-ENV NODE_ENV=production STATIC_DIR=/app/web/dist DB_DIR=/app/db
+ENV NODE_ENV=production STATIC_DIR=/app/web/dist
 USER node
 CMD ["node", "src/server.js"]

@@ -73,7 +73,7 @@ export default function App() {
         <Cifra valor={r?.hallazgos} etiqueta="Hallazgos documentales y de campo" />
         <Cifra valor={r?.pendientes} etiqueta="Datos por averiguar" />
       </dl>
-      {resumen.error && <p className="error" role="alert">No se pudo conectar con la API. Revisá que esté levantada en el puerto 3001.</p>}
+      {resumen.error && <p className="error" role="alert">No se pudo conectar con la API. Probá recargar la página en un momento.</p>}
 
       <nav className="tabs" role="tablist" aria-label="Secciones del tablero" ref={tabsRef} onKeyDown={teclas}>
         {PESTANAS.map(([id, t]) => (
