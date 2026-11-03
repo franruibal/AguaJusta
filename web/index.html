@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="es-AR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Tablero del relevamiento Aguas Justas sobre el río San Antonio (San Antonio de Arredondo y Villa Carlos Paz)." />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>Aguas Justas: río San Antonio</title>
+    <script>
+      // Aplica el tema guardado antes de pintar, para que no parpadee.
+      try { const t = localStorage.getItem('aj-tema'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

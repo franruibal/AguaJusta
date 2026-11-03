@@ -1,0 +1,22 @@
+{
+  "name": "aguas-justas-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "API del tablero Aguas Justas: lee la base MySQL y devuelve los cálculos ya hechos en SQL.",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test test/*.test.js",
+    "db:cargar": "node src/seed.js",
+    "db:recargar": "node src/seed.js --recargar"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "mysql2": "^3.14.0"
+  }
+}
