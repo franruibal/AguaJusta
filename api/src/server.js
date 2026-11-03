@@ -2,7 +2,7 @@ import express from 'express';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { pool } from './db.js';
+import { describir, pool } from './db.js';
 import * as Q from './queries.js';
 import { cargar } from './seed.js';
 
@@ -15,10 +15,15 @@ app.disable('x-powered-by');
 
 /* La primera petición contra una base vacía crea las tablas y carga los datos. */
 let preparada = null;
+let errorCarga = null;
 const prepararBase = () => {
   preparada ??= cargar()
-    .then((hecho) => { if (hecho) console.log('Base vacía: se cargaron las tablas y los datos.'); })
-    .catch((err) => { console.error('No se pudo preparar la base:', err.message); preparada = null; });
+    .then((hecho) => { errorCarga = null; if (hecho) console.log('Base vacía: se cargaron las tablas y los datos.'); })
+    .catch((err) => {
+      errorCarga = { codigo: err.code ?? null, mensaje: err.message };
+      console.error('No se pudo preparar la base:', err.message);
+      preparada = null;
+    });
   return preparada;
 };
 
@@ -31,13 +36,34 @@ const param = (req, name, max = 120) => {
 };
 
 /** Envuelve un handler async para que los errores lleguen al manejador común. */
+/** Traduce los errores de conexión más comunes a qué revisar. */
+const pista = (err) => ({
+  ECONNREFUSED: 'No hay base en esa dirección. Si dice 127.0.0.1, falta cargar MYSQL_URL en Vercel y volver a desplegar.',
+  ENOTFOUND: 'El host de MYSQL_URL no existe. Revisá que esté bien copiado; si la contraseña tiene @ # / ? o :, regenerala sin esos caracteres.',
+  ETIMEDOUT: 'La base no responde. Revisá el host y el puerto (TiDB usa 4000).',
+  ER_ACCESS_DENIED_ERROR: 'Usuario o contraseña incorrectos. En TiDB el usuario lleva un prefijo, por ejemplo XXXXXXXX.root.',
+  ER_BAD_DB_ERROR: 'La base indicada al final de MYSQL_URL no existe. Usá /test o creala en TiDB.',
+  ER_SECURE_TRANSPORT_REQUIRED: 'La base exige conexión cifrada: poné MYSQL_SSL=true.',
+  HANDSHAKE_SSL_ERROR: 'Falló el cifrado. Si la base es local, poné MYSQL_SSL=false.',
+}[err.code] ?? 'Revisá MYSQL_URL en Vercel (Settings → Environment Variables) y volvé a desplegar.');
+
 const ruta = (fn) => async (req, res, next) => {
   try { res.json(await fn(req)); } catch (err) { next(err); }
 };
 
 const api = express.Router();
 api.use(async (req, res, next) => { await prepararBase(); next(); });
-api.get('/salud', ruta(async () => { await pool.query('SELECT 1'); return { ok: true }; }));
+/* Diagnóstico: abrí /api/salud en el navegador para ver por qué falla la base (no muestra la contraseña). */
+api.get('/salud', async (req, res) => {
+  const conexion = describir();
+  try {
+    await pool.query('SELECT 1');
+    const [[{ n }]] = await pool.query("SELECT COUNT(*) AS n FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'respuesta'");
+    res.json({ ok: true, conexion, datos_cargados: n > 0, ...(errorCarga ? { error_al_cargar: errorCarga } : {}) });
+  } catch (err) {
+    res.status(503).json({ ok: false, conexion, error: { codigo: err.code ?? null, mensaje: err.message }, pista: pista(err), ...(errorCarga ? { error_al_cargar: errorCarga } : {}) });
+  }
+});
 api.get('/resumen', ruta(() => Q.resumen()));
 api.get('/temas', ruta(() => Q.temas()));
 api.get('/categorias', ruta(() => Q.categorias()));
@@ -72,7 +98,7 @@ if (!process.env.VERCEL) {
 
 app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
   console.error(err);
-  res.status(500).json({ error: 'No se pudo leer la base de datos. Revisá que MySQL esté disponible y que MYSQL_URL sea correcta.' });
+  res.status(500).json({ error: 'No se pudo leer la base de datos. Abrí /api/salud para ver el motivo.', codigo: err.code ?? null });
 });
 
 /* En Vercel se usa la app exportada; en local se levanta un servidor. */

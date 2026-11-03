@@ -73,7 +73,7 @@ export default function App() {
         <Cifra valor={r?.hallazgos} etiqueta="Hallazgos documentales y de campo" />
         <Cifra valor={r?.pendientes} etiqueta="Datos por averiguar" />
       </dl>
-      {resumen.error && <p className="error" role="alert">No se pudo conectar con la API. Probá recargar la página en un momento.</p>}
+      {resumen.error && <p className="error" role="alert">La API no pudo leer la base de datos. Abrí <a href="/api/salud" target="_blank" rel="noreferrer">/api/salud</a> para ver el motivo.</p>}
 
       <nav className="tabs" role="tablist" aria-label="Secciones del tablero" ref={tabsRef} onKeyDown={teclas}>
         {PESTANAS.map(([id, t]) => (
